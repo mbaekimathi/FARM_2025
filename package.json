@@ -1,0 +1,21 @@
+{
+  "name": "farm-employee-system",
+  "version": "1.0.0",
+  "description": "Employee signup and login system for Kwetu Farm",
+  "main": "server/index.js",
+  "scripts": {
+    "dev": "concurrently \"npm run server:dev\" \"npm run client:dev\"",
+    "server:dev": "cd server && npm run dev",
+    "client:dev": "cd client && npm start",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start",
+    "install:all": "npm install && cd server && npm install && cd ../client && npm install",
+    "setup:db": "cd server && npm run setup:db"
+  },
+  "keywords": ["employee", "farm", "signup", "login", "mysql", "react", "nodejs"],
+  "author": "Kwetu Farm",
+  "license": "MIT",
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+} 

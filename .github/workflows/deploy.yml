@@ -1,0 +1,86 @@
+name: Deploy to HostPinnacle
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    
+    steps:
+    - name: Checkout code
+      uses: actions/checkout@v4
+
+    - name: Setup Node.js
+      uses: actions/setup-node@v4
+      with:
+        node-version: '18'
+        cache: 'npm'
+
+    - name: Install dependencies
+      run: |
+        npm run install:all
+
+    - name: Build React app
+      run: |
+        cd client
+        npm run build
+      env:
+        REACT_APP_API_URL: ${{ secrets.REACT_APP_API_URL }}
+
+    - name: Setup server environment
+      run: |
+        cd server
+        cp env.example .env
+        echo "DB_HOST=${{ secrets.DB_HOST }}" >> .env
+        echo "DB_USER=kwetufar_farm" >> .env
+        echo "DB_PASSWORD=Itskimathi007" >> .env
+        echo "DB_NAME=kwetufar_farm" >> .env
+        echo "DB_PORT=${{ secrets.DB_PORT }}" >> .env
+        echo "JWT_SECRET=${{ secrets.JWT_SECRET }}" >> .env
+        echo "JWT_EXPIRES_IN=${{ secrets.JWT_EXPIRES_IN }}" >> .env
+        echo "NODE_ENV=production" >> .env
+        echo "PORT=${{ secrets.PORT }}" >> .env
+        echo "CORS_ORIGIN=${{ secrets.CORS_ORIGIN }}" >> .env
+
+    - name: Deploy to HostPinnacle via SFTP
+      uses: wlixcc/SFTP-Deploy-Action@v1.2.4
+      with:
+        username: ${{ secrets.SFTP_USERNAME }}
+        server: ${{ secrets.SFTP_HOST }}
+        ssh_private_key: ${{ secrets.SFTP_PRIVATE_KEY }}
+        local_path: './*'
+        remote_path: ${{ secrets.SFTP_REMOTE_PATH }}
+        exclude: |
+          **/.git*
+          **/.git*/**
+          **/node_modules/**
+          **/.env
+          **/.env.*
+          **/README.md
+          **/.github/**
+          **/.vscode/**
+
+    - name: Install server dependencies on remote
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SFTP_HOST }}
+        username: ${{ secrets.SFTP_USERNAME }}
+        key: ${{ secrets.SFTP_PRIVATE_KEY }}
+        script: |
+          cd ${{ secrets.SFTP_REMOTE_PATH }}
+          npm install --production
+          npm run setup:db
+
+    - name: Restart application
+      uses: appleboy/ssh-action@v1.0.3
+      with:
+        host: ${{ secrets.SFTP_HOST }}
+        username: ${{ secrets.SFTP_USERNAME }}
+        key: ${{ secrets.SFTP_PRIVATE_KEY }}
+        script: |
+          cd ${{ secrets.SFTP_REMOTE_PATH }}
+          pm2 restart farm-employee-system || pm2 start server/index.js --name farm-employee-system 
